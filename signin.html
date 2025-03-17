@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="form-container sign-in-container">
+            <form id="signInForm">
+                <h1>Sign In</h1>
+                <input type="text" placeholder="Email / Username / NIM" name="identifier" required />
+                <input type="password" placeholder="Password" name="password" required />
+                <button type="submit">Sign In</button>
+                <p class="reset-text">Forgot password? <a href="#" id="resetPasswordLink">Reset here</a></p>
+            </form>
+            <div id="resetPasswordSection">
+                <form id="resetPasswordForm">
+                    <h1>Reset Password</h1>
+                    <input type="email" placeholder="Email" name="resetEmail" required />
+                    <input type="password" placeholder="New Password" name="newPassword" required />
+                    <input type="password" placeholder="Confirm New Password" name="confirmNewPassword" required />
+                    <button type="submit">Reset Password</button>
+                    <p class="reset-text"><a href="#" id="backToSignIn">Back to Sign In</a></p>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="scripts.js"></script>
+</body>
+</html>

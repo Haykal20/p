@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container profile-container">
+        <div class="profile-info">
+            <div class="photo-section">
+                <img id="userPhoto" src="" alt="Profile Photo" class="profile-photo">
+                <label for="photoInput" class="hidden">Upload Profile Photo</label>
+                <input type="file" id="photoInput" accept="image/*" class="hidden" title="Upload Profile Photo">
+                <button id="changePhotoBtn" class="photo-btn">Change Photo</button>
+            </div>
+            <div class="user-details">
+                <h1 id="userName"></h1>
+                <p id="userEmail" class="user-info"></p>
+                <p id="userNim" class="user-info"></p>
+            </div>
+            <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+    </div>
+    <script src="profile.js"></script>
+</body>
+</html>
