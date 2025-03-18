@@ -376,3 +376,59 @@ app.listen(PORT, () => {
         console.error('Error during initialization:', error);
     }
 });
+
+// Update static file serving configuration
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname)));
+
+// Add this new configuration for uploads directory
+const uploadPath = process.env.NODE_ENV === 'production' 
+    ? '/tmp/data/uploads'
+    : path.join(__dirname, 'uploads');
+
+// Ensure upload directory exists
+if (!fs.existsSync(uploadPath)) {
+    fs.mkdirSync(uploadPath, { recursive: true });
+}
+
+// Update static serving for uploads
+app.use('/uploads', express.static(uploadPath));
+
+// Update photo upload handler
+app.post('/update-photo', upload.single('photo'), (req, res) => {
+    if (!req.session.user) {
+        return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    try {
+        const users = readUsers();
+        const userIndex = users.findIndex(user => user.username === req.session.user.username);
+
+        if (userIndex === -1) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Update photo path in users.json and session
+        const photoFilename = req.file.filename;
+        users[userIndex].photo = photoFilename;
+        req.session.user.photo = photoFilename;
+        writeUsers(users);
+
+        // Return full URL for the photo
+        const photoUrl = `/uploads/${photoFilename}`;
+        console.log('Photo updated successfully:', photoUrl);
+        
+        res.json({ 
+            photo: photoFilename,
+            photoUrl: photoUrl,
+            message: 'Photo updated successfully'
+        });
+    } catch (error) {
+        console.error('Error updating photo:', error);
+        res.status(500).json({ message: 'Error updating photo' });
+    }
+});

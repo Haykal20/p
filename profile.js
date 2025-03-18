@@ -55,7 +55,10 @@ document.getElementById('photoInput').addEventListener('change', async (event) =
 
         if (response.ok) {
             const result = await response.json();
-            document.getElementById('userPhoto').src = `/uploads/${result.photo}`;
+            const photoUrl = result.photoUrl || `/uploads/${result.photo}`;
+            const userPhoto = document.getElementById('userPhoto');
+            userPhoto.src = photoUrl + '?t=' + new Date().getTime(); // Add cache buster
+            console.log('Photo updated successfully:', photoUrl);
         } else {
             alert('Failed to update photo');
         }
