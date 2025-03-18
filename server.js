@@ -17,32 +17,35 @@ const SALT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12;
 const SESSION_SECRET = process.env.SESSION_SECRET || require('crypto').randomBytes(32).toString('hex');
 
 // Configure multer for file upload
+const getUploadDir = () => {
+    const baseDir = process.env.NODE_ENV === 'production' 
+        ? path.resolve('/tmp/data/uploads')
+        : path.join(__dirname, 'uploads');
+    
+    if (!fs.existsSync(baseDir)) {
+        fs.mkdirSync(baseDir, { recursive: true });
+    }
+    return baseDir;
+};
+
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        // Ensure upload directory exists
-        const uploadDir = process.env.NODE_ENV === 'production' 
-            ? path.join(process.env.PERSISTENT_STORAGE, 'uploads')
-            : path.join(__dirname, 'uploads');
-            
+        const uploadDir = getUploadDir();
         console.log('Upload directory:', uploadDir); // Debug log
-        
-        try {
-            if (!fs.existsSync(uploadDir)) {
-                fs.mkdirSync(uploadDir, { recursive: true });
-            }
-            cb(null, uploadDir);
-        } catch (error) {
-            console.error('Error creating upload directory:', error);
-            cb(error);
-        }
+        cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
-        const uniqueName = Date.now() + '-' + file.originalname.replace(/\s+/g, '-');
+        const uniqueName = `${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`;
         cb(null, uniqueName);
     }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ 
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    }
+});
 
 // Middleware
 app.use(bodyParser.json());
@@ -256,7 +259,8 @@ app.get('/logout', (req, res) => {
 
 // Add this after other routes
 app.post('/update-photo', upload.single('photo'), (req, res) => {
-    console.log('Update photo request received'); // Debug log
+    console.log('Update photo request received');
+    console.log('Session user:', req.session.user);
     
     if (!req.session.user) {
         return res.status(401).json({ message: 'Not authenticated' });
@@ -266,25 +270,19 @@ app.post('/update-photo', upload.single('photo'), (req, res) => {
         return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    console.log('File uploaded:', req.file); // Debug log
-
-    const users = readUsers();
-    const userIndex = users.findIndex(user => user.username === req.session.user.username);
-
-    if (userIndex === -1) {
-        return res.status(404).json({ message: 'User not found' });
-    }
+    console.log('File uploaded:', req.file);
 
     try {
-        // Delete old photo if it exists and isn't the default
+        const users = readUsers();
+        const userIndex = users.findIndex(user => user.username === req.session.user.username);
+
+        if (userIndex === -1) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Delete old photo if exists and isn't default
         if (users[userIndex].photo && users[userIndex].photo !== 'default-avatar.png') {
-            const oldPhotoPath = path.join(
-                process.env.NODE_ENV === 'production' 
-                    ? path.join(process.env.PERSISTENT_STORAGE, 'uploads')
-                    : path.join(__dirname, 'uploads'),
-                users[userIndex].photo
-            );
-            
+            const oldPhotoPath = path.join(getUploadDir(), users[userIndex].photo);
             if (fs.existsSync(oldPhotoPath)) {
                 fs.unlinkSync(oldPhotoPath);
             }
@@ -294,7 +292,8 @@ app.post('/update-photo', upload.single('photo'), (req, res) => {
         users[userIndex].photo = req.file.filename;
         req.session.user.photo = req.file.filename;
         writeUsers(users);
-        
+
+        console.log('Photo updated successfully');
         res.json({ 
             photo: req.file.filename,
             message: 'Photo updated successfully'
