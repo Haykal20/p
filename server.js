@@ -36,6 +36,12 @@ app.use('/uploads', express.static('uploads'));
 // Melayani file statis
 app.use(express.static(path.join(__dirname)));
 
+// Ensure SESSION_SECRET exists
+if (!process.env.SESSION_SECRET) {
+    console.error('SESSION_SECRET is not set in environment variables');
+    process.exit(1);
+}
+
 // Update session configuration
 app.use(session({
     store: new FileStore({
@@ -47,10 +53,10 @@ app.use(session({
         secret: process.env.SESSION_SECRET // Add secret to file store
     }),
     secret: process.env.SESSION_SECRET,
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     cookie: {
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         maxAge: 1000 * 60 * 60 * 24,
         sameSite: 'lax'
