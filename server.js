@@ -291,44 +291,53 @@ app.post('/reset-password', async (req, res) => {
 
 // Add startup initialization before app.listen
 const initializeApp = () => {
-    // Create necessary directories
-    const dirs = process.env.NODE_ENV === 'production' 
-        ? [
-            process.env.PERSISTENT_STORAGE,
-            process.env.UPLOAD_DIR,
-            '/tmp/sessions'
-          ]
-        : [
-            './uploads',
-            './sessions',
-            './tmp'
-          ];
+    // Set default paths if environment variables are not set
+    const persistentStorage = process.env.PERSISTENT_STORAGE || process.env.DEFAULT_STORAGE || './data';
+    const uploadDir = process.env.UPLOAD_DIR || process.env.DEFAULT_UPLOADS || './uploads';
+    const sessionsDir = process.env.NODE_ENV === 'production' ? '/tmp/sessions' : './sessions';
+
+    // Create necessary directories with proper error handling
+    const dirs = [persistentStorage, uploadDir, sessionsDir];
     
     dirs.forEach(dir => {
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-            console.log(`Created directory: ${dir}`);
+        if (dir) {  // Check if directory path is defined
+            try {
+                if (!fs.existsSync(dir)) {
+                    fs.mkdirSync(dir, { recursive: true });
+                    console.log(`Created directory: ${dir}`);
+                }
+            } catch (error) {
+                console.error(`Error creating directory ${dir}:`, error);
+            }
         }
     });
     
-    // Initialize users.json
-    const users = readUsers();
-    if (users.length === 0) {
-        const defaultAdmin = {
-            username: "admin",
-            name: "Administrator",
-            nim: "admin123",
-            email: "admin@example.com",
-            password: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LudZ4OceRKGy3RqOy", // admin123
-            photo: "default-avatar.png"
-        };
-        writeUsers([defaultAdmin]);
-        console.log('Created default admin user');
+    // Initialize users.json with proper path
+    try {
+        const users = readUsers();
+        if (users.length === 0) {
+            const defaultAdmin = {
+                username: "admin",
+                name: "Administrator",
+                nim: "admin123",
+                email: "admin@example.com",
+                password: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LudZ4OceRKGy3RqOy",
+                photo: "default-avatar.png"
+            };
+            writeUsers([defaultAdmin]);
+            console.log('Created default admin user');
+        }
+    } catch (error) {
+        console.error('Error initializing users:', error);
     }
 };
 
-// Update server startup
+// Update server startup with error handling
 app.listen(PORT, () => {
-    initializeApp();
-    console.log(`Server is running at http://localhost:${PORT}`);
+    try {
+        initializeApp();
+        console.log(`Server is running at http://localhost:${PORT}`);
+    } catch (error) {
+        console.error('Error during initialization:', error);
+    }
 });
