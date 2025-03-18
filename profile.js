@@ -1,12 +1,21 @@
 window.addEventListener('load', async () => {
-    const response = await fetch('/profile-data');
-    if (response.ok) {
-        const userData = await response.json();
-        document.getElementById('userPhoto').src = `/uploads/${userData.photo}`;
-        document.getElementById('userName').textContent = userData.name;
-        document.getElementById('userEmail').textContent = userData.email;
-        document.getElementById('userNim').textContent = `NIM: ${userData.nim}`;
-    } else {
+    try {
+        const response = await fetch('/profile-data', {
+            credentials: 'same-origin'
+        });
+        
+        if (response.ok) {
+            const userData = await response.json();
+            document.getElementById('userPhoto').src = `/uploads/${userData.photo}`;
+            document.getElementById('userName').textContent = userData.name;
+            document.getElementById('userEmail').textContent = userData.email;
+            document.getElementById('userNim').textContent = `NIM: ${userData.nim}`;
+        } else {
+            console.error('Failed to fetch profile data');
+            window.location.href = '/';
+        }
+    } catch (error) {
+        console.error('Error loading profile:', error);
         window.location.href = '/';
     }
 });

@@ -44,10 +44,10 @@ app.use(session({
         reapInterval: 3600 // Clean up expired sessions every hour
     }),
     secret: process.env.SESSION_SECRET || 'fallback-secret-key',
-    resave: false,
-    saveUninitialized: false, // Changed to false for better security
+    resave: true, // Changed to true
+    saveUninitialized: true, // Changed to true
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+        secure: false, // Set to false for development
         httpOnly: true, // Prevents client side JS from reading the cookie 
         maxAge: 1000 * 60 * 60 * 24, // Session max age in milliseconds (1 day)
         sameSite: 'lax',
@@ -125,14 +125,13 @@ app.post('/signup', async (req, res) => {
 // Update signin route with better error handling and logging
 app.post('/signin', async (req, res) => {
     const { identifier, password } = req.body;
+    console.log('Login attempt:', { identifier });
     
     if (!identifier || !password) {
         return res.status(400).json({ message: 'All fields are required' });
     }
 
     const users = readUsers();
-    console.log('Attempting sign in for:', identifier);
-
     const user = users.find(user => 
         user.email === identifier || 
         user.username === identifier || 
@@ -140,18 +139,17 @@ app.post('/signin', async (req, res) => {
     );
 
     if (!user) {
-        console.log('User not found');
+        console.log('User not found:', identifier);
         return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     try {
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            console.log('Invalid password');
+            console.log('Invalid password for user:', identifier);
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        // Store minimal user data in session
         req.session.user = {
             username: user.username,
             name: user.name,
@@ -160,31 +158,32 @@ app.post('/signin', async (req, res) => {
             photo: user.photo
         };
         
-        await new Promise((resolve, reject) => {
-            req.session.save((err) => {
-                if (err) {
-                    console.error('Session save error:', err);
-                    reject(err);
-                }
-                resolve();
-            });
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.status(500).json({ message: 'Error creating session' });
+            }
+            console.log('Session saved successfully:', req.session.id);
+            console.log('User data in session:', req.session.user);
+            res.status(200).json({ message: 'Sign-in successful' });
         });
 
-        console.log('Sign in successful for:', user.username);
-        res.status(200).json({ message: 'Sign-in successful' });
     } catch (error) {
-        console.error('Error during sign in:', error);
+        console.error('Login error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });
 
 // Update profile route with better security
 app.get('/profile', (req, res) => {
-    console.log('Session user:', req.session.user);
+    console.log('Session ID:', req.session.id);
+    console.log('Session Data:', req.session);
+    
     if (!req.session.user) {
         console.log('No session user found, redirecting to signin');
         return res.redirect('/');
     }
+    console.log('User authenticated, serving profile page');
     res.sendFile(path.join(__dirname, 'profile.html'));
 });
 

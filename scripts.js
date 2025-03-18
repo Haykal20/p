@@ -21,7 +21,7 @@ document.getElementById('signInForm').addEventListener('submit', async function(
             headers: {
                 'Content-Type': 'application/json'
             },
-            credentials: 'include', // Important for sending cookies
+            credentials: 'same-origin', // Changed from 'include' to 'same-origin'
             body: JSON.stringify({ identifier, password })
         });
 
@@ -31,6 +31,7 @@ document.getElementById('signInForm').addEventListener('submit', async function(
             console.log('Sign in successful, redirecting...');
             window.location.href = '/profile';
         } else {
+            console.error('Sign in failed:', result.message);
             alert(result.message);
         }
     } catch (error) {
