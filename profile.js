@@ -26,14 +26,27 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('changePhotoBtn').addEventListener('click', () => {
-    document.getElementById('photoInput').click();
+    const input = document.getElementById('photoInput');
+    input.click();
 });
 
 document.getElementById('photoInput').addEventListener('change', async (event) => {
     const file = event.target.files[0];
-    if (file) {
-        const formData = new FormData();
-        formData.append('photo', file);
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+        alert('Please select an image file (JPG, PNG, or GIF)');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    try {
+        const changePhotoBtn = document.getElementById('changePhotoBtn');
+        changePhotoBtn.textContent = 'Uploading...';
+        changePhotoBtn.disabled = true;
 
         const response = await fetch('/update-photo', {
             method: 'POST',
@@ -46,5 +59,11 @@ document.getElementById('photoInput').addEventListener('change', async (event) =
         } else {
             alert('Failed to update photo');
         }
+    } catch (error) {
+        alert('Error uploading photo');
+        console.error('Upload error:', error);
+    } finally {
+        changePhotoBtn.textContent = 'Change Profile Photo';
+        changePhotoBtn.disabled = false;
     }
 });
