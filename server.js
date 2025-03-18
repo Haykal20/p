@@ -36,25 +36,35 @@ app.use('/uploads', express.static('uploads'));
 // Melayani file statis
 app.use(express.static(path.join(__dirname)));
 
-// Update session configuration for Railway compatibility
+// Update session configuration
 app.use(session({
     store: new FileStore({
         path: './sessions',
-        ttl: 86400, // 1 day in seconds
-        reapInterval: 3600 // Clean up expired sessions every hour
+        ttl: 86400,
+        reapInterval: 3600,
+        logFn: function(){}, // Disable verbose session logs
+        retries: 0, // Disable retries
+        secret: process.env.SESSION_SECRET // Add secret to file store
     }),
-    secret: process.env.SESSION_SECRET || 'fallback-secret-key',
-    resave: true, // Changed to true
-    saveUninitialized: true, // Changed to true
+    secret: process.env.SESSION_SECRET,
+    resave: true,
+    saveUninitialized: true,
     cookie: {
-        secure: false, // Set to false for development
-        httpOnly: true, // Prevents client side JS from reading the cookie 
-        maxAge: 1000 * 60 * 60 * 24, // Session max age in milliseconds (1 day)
-        sameSite: 'lax',
-        // Remove domain setting as it's causing issues
-        domain: undefined
+        secure: false,
+        httpOnly: true,
+        maxAge: 1000 * 60 * 60 * 24,
+        sameSite: 'lax'
     }
 }));
+
+// Add session error handler
+app.use((req, res, next) => {
+    if (!req.session) {
+        console.error('Session error occurred');
+        return res.status(500).send('Session error');
+    }
+    next();
+});
 
 // Update CORS headers for Railway
 app.use((req, res, next) => {
