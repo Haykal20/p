@@ -38,7 +38,7 @@ app.use(express.static(path.join(__dirname)));
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: true
 }));
 
 // Rute untuk menangani permintaan GET ke root URL
