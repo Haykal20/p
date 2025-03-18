@@ -51,15 +51,18 @@ app.use(session({
         httpOnly: true, // Prevents client side JS from reading the cookie 
         maxAge: 1000 * 60 * 60 * 24, // Session max age in milliseconds (1 day)
         sameSite: 'lax',
-        // Allow cookies to work on Railway's domain
-        domain: process.env.RAILWAY_STATIC_URL ? new URL(process.env.RAILWAY_STATIC_URL).hostname : undefined
+        // Remove domain setting as it's causing issues
+        domain: undefined
     }
 }));
 
-// Add CORS headers for Railway
+// Update CORS headers for Railway
 app.use((req, res, next) => {
     if (process.env.RAILWAY_STATIC_URL) {
-        res.setHeader('Access-Control-Allow-Origin', process.env.RAILWAY_STATIC_URL);
+        const allowedOrigin = process.env.RAILWAY_STATIC_URL.startsWith('http') 
+            ? process.env.RAILWAY_STATIC_URL 
+            : `https://${process.env.RAILWAY_STATIC_URL}`;
+        res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
         res.setHeader('Access-Control-Allow-Credentials', 'true');
