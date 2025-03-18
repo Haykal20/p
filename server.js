@@ -93,12 +93,17 @@ app.get('/signup', (req, res) => {
     res.sendFile(path.join(__dirname, 'signup.html'));
 });
 
+// Helper function to get user data file path
+const getUsersFilePath = () => {
+    if (process.env.NODE_ENV === 'production') {
+        return path.join(process.env.PERSISTENT_STORAGE || '/tmp/data', 'users.json');
+    }
+    return path.join(__dirname, 'data', 'users.json');
+};
+
 // Helper function to read users from the file
 const readUsers = () => {
-    const usersFile = process.env.NODE_ENV === 'production' 
-        ? path.join(process.env.PERSISTENT_STORAGE, 'users.json')
-        : './users.json';
-        
+    const usersFile = getUsersFilePath();
     try {
         if (!fs.existsSync(usersFile)) {
             const defaultUsers = [{
@@ -122,10 +127,7 @@ const readUsers = () => {
 
 // Helper function to write users to the file
 const writeUsers = (users) => {
-    const usersFile = process.env.NODE_ENV === 'production' 
-        ? path.join(process.env.PERSISTENT_STORAGE, 'users.json')
-        : './users.json';
-    
+    const usersFile = getUsersFilePath();
     try {
         const dirPath = path.dirname(usersFile);
         if (!fs.existsSync(dirPath)) {
@@ -291,28 +293,27 @@ app.post('/reset-password', async (req, res) => {
 
 // Add startup initialization before app.listen
 const initializeApp = () => {
-    // Set default paths if environment variables are not set
-    const persistentStorage = process.env.PERSISTENT_STORAGE || process.env.DEFAULT_STORAGE || './data';
-    const uploadDir = process.env.UPLOAD_DIR || process.env.DEFAULT_UPLOADS || './uploads';
-    const sessionsDir = process.env.NODE_ENV === 'production' ? '/tmp/sessions' : './sessions';
-
-    // Create necessary directories with proper error handling
-    const dirs = [persistentStorage, uploadDir, sessionsDir];
+    // Create base directories
+    const baseDir = process.env.NODE_ENV === 'production' ? '/tmp/data' : path.join(__dirname, 'data');
+    const dirs = [
+        baseDir,
+        path.join(baseDir, 'uploads'),
+        path.join(baseDir, 'sessions'),
+        path.join(baseDir, 'tmp')
+    ];
     
     dirs.forEach(dir => {
-        if (dir) {  // Check if directory path is defined
-            try {
-                if (!fs.existsSync(dir)) {
-                    fs.mkdirSync(dir, { recursive: true });
-                    console.log(`Created directory: ${dir}`);
-                }
-            } catch (error) {
-                console.error(`Error creating directory ${dir}:`, error);
+        try {
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+                console.log(`Created directory: ${dir}`);
             }
+        } catch (error) {
+            console.error(`Error creating directory ${dir}:`, error);
         }
     });
-    
-    // Initialize users.json with proper path
+
+    // Initialize users.json
     try {
         const users = readUsers();
         if (users.length === 0) {
