@@ -19,9 +19,11 @@ const SESSION_SECRET = process.env.SESSION_SECRET || require('crypto').randomByt
 // Configure multer for file upload
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const uploadDir = 'uploads';
+        const uploadDir = process.env.NODE_ENV === 'production' 
+            ? process.env.UPLOAD_DIR 
+            : './uploads';
         if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir);
+            fs.mkdirSync(uploadDir, { recursive: true });
         }
         cb(null, uploadDir);
     },
@@ -39,10 +41,10 @@ app.use('/uploads', express.static('uploads'));
 // Melayani file statis
 app.use(express.static(path.join(__dirname)));
 
-// Update session configuration
+// Update session configuration for Railway
 app.use(session({
     store: new FileStore({
-        path: './sessions',
+        path: process.env.NODE_ENV === 'production' ? '/tmp/sessions' : './sessions',
         ttl: 86400,
         reapInterval: 3600,
         logFn: function(){}, // Disable verbose session logs
@@ -52,7 +54,7 @@ app.use(session({
     resave: true, // Changed to true
     saveUninitialized: true, // Changed to true
     cookie: {
-        secure: false, // Set to false for development
+        secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         maxAge: 1000 * 60 * 60 * 24,
         sameSite: 'lax'
@@ -91,23 +93,51 @@ app.get('/signup', (req, res) => {
     res.sendFile(path.join(__dirname, 'signup.html'));
 });
 
-const usersFile = './users.json';
-
 // Helper function to read users from the file
 const readUsers = () => {
-    if (!fs.existsSync(usersFile)) {
+    const usersFile = process.env.NODE_ENV === 'production' 
+        ? path.join(process.env.PERSISTENT_STORAGE, 'users.json')
+        : './users.json';
+        
+    try {
+        if (!fs.existsSync(usersFile)) {
+            const defaultUsers = [{
+                username: "admin",
+                name: "Administrator",
+                nim: "admin123",
+                email: "admin@example.com",
+                password: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LudZ4OceRKGy3RqOy",
+                photo: "default-avatar.png"
+            }];
+            writeUsers(defaultUsers);
+            return defaultUsers;
+        }
+        const data = fs.readFileSync(usersFile);
+        return JSON.parse(data);
+    } catch (error) {
+        console.error('Error reading users:', error);
         return [];
     }
-    const data = fs.readFileSync(usersFile);
-    return JSON.parse(data);
 };
 
 // Helper function to write users to the file
 const writeUsers = (users) => {
-    fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+    const usersFile = process.env.NODE_ENV === 'production' 
+        ? path.join(process.env.PERSISTENT_STORAGE, 'users.json')
+        : './users.json';
+    
+    try {
+        const dirPath = path.dirname(usersFile);
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+        }
+        fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+    } catch (error) {
+        console.error('Error writing users:', error);
+    }
 };
 
-// Update signup route to handle without file upload
+// Signup route
 app.post('/signup', async (req, res) => {
     const { username, name, nim, email, password } = req.body;
     const users = readUsers();
@@ -127,17 +157,15 @@ app.post('/signup', async (req, res) => {
         nim,
         email,
         password: hashedPassword,
-        photo: 'default-avatar.png'  // You can add a default avatar image
+        photo: 'default-avatar.png'
     });
     writeUsers(users);
-
     res.status(201).json({ message: 'User registered successfully' });
 });
 
-// Update signin route with better error handling and logging
+// Signin route
 app.post('/signin', async (req, res) => {
     const { identifier, password } = req.body;
-    console.log('Login attempt:', { identifier });
     
     if (!identifier || !password) {
         return res.status(400).json({ message: 'All fields are required' });
@@ -151,14 +179,12 @@ app.post('/signin', async (req, res) => {
     );
 
     if (!user) {
-        console.log('User not found:', identifier);
         return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     try {
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            console.log('Invalid password for user:', identifier);
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
@@ -169,20 +195,17 @@ app.post('/signin', async (req, res) => {
             nim: user.nim,
             photo: user.photo
         };
-        
+
         req.session.save((err) => {
             if (err) {
                 console.error('Session save error:', err);
                 return res.status(500).json({ message: 'Error creating session' });
             }
-            console.log('Session saved successfully:', req.session.id);
-            console.log('User data in session:', req.session.user);
             res.status(200).json({ 
                 message: 'Sign-in successful',
-                redirectUrl: '/profile'  // Tambahkan URL redirect
+                redirectUrl: '/profile'
             });
         });
-
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -193,7 +216,6 @@ app.post('/signin', async (req, res) => {
 app.get('/profile', (req, res) => {
     console.log('Session ID:', req.session.id);
     console.log('Session Data:', req.session);
-    
     if (!req.session.user) {
         console.log('No session user found, redirecting to signin');
         return res.redirect('/');
@@ -226,7 +248,7 @@ app.post('/update-photo', upload.single('photo'), (req, res) => {
 
     const users = readUsers();
     const userIndex = users.findIndex(user => user.username === req.session.user.username);
-    
+
     if (userIndex !== -1) {
         // Delete old photo if exists
         if (users[userIndex].photo) {
@@ -240,7 +262,6 @@ app.post('/update-photo', upload.single('photo'), (req, res) => {
         users[userIndex].photo = req.file.filename;
         req.session.user.photo = req.file.filename;
         writeUsers(users);
-
         res.json({ photo: req.file.filename });
     } else {
         res.status(404).json({ message: 'User not found' });
@@ -268,7 +289,46 @@ app.post('/reset-password', async (req, res) => {
     }
 });
 
-// Start the server
+// Add startup initialization before app.listen
+const initializeApp = () => {
+    // Create necessary directories
+    const dirs = process.env.NODE_ENV === 'production' 
+        ? [
+            process.env.PERSISTENT_STORAGE,
+            process.env.UPLOAD_DIR,
+            '/tmp/sessions'
+          ]
+        : [
+            './uploads',
+            './sessions',
+            './tmp'
+          ];
+    
+    dirs.forEach(dir => {
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+            console.log(`Created directory: ${dir}`);
+        }
+    });
+    
+    // Initialize users.json
+    const users = readUsers();
+    if (users.length === 0) {
+        const defaultAdmin = {
+            username: "admin",
+            name: "Administrator",
+            nim: "admin123",
+            email: "admin@example.com",
+            password: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LudZ4OceRKGy3RqOy", // admin123
+            photo: "default-avatar.png"
+        };
+        writeUsers([defaultAdmin]);
+        console.log('Created default admin user');
+    }
+};
+
+// Update server startup
 app.listen(PORT, () => {
+    initializeApp();
     console.log(`Server is running at http://localhost:${PORT}`);
 });
