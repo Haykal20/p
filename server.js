@@ -41,6 +41,14 @@ app.use(session({
     saveUninitialized: true
 }));
 
+// Add this before app.listen
+app.use((req, res, next) => {
+  if (process.env.RAILWAY_STATIC_URL) {
+    res.setHeader('Access-Control-Allow-Origin', process.env.RAILWAY_STATIC_URL);
+  }
+  next();
+});
+
 // Rute untuk menangani permintaan GET ke root URL
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'signin.html'));
