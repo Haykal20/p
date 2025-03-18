@@ -2,50 +2,38 @@
 node_modules/
 package-lock.json
 
-# Environment variables
+# Environment
 .env
+.env.*
+!.env.example
+
+# Data directories
+/data/
+/uploads/
+/sessions/
+/tmp/
+
+# User data
+users.json
+*.db
 
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 
-# Runtime data
-pids
+# Runtime
+pids/
 *.pid
 *.seed
 *.pid.lock
 
-# Directory for uploaded files
-uploads/
-
-# User data
-users.json
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
-
-# IDE files
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# Session files
-sessions/
+# OS
+.DS_Store
+Thumbs.db
