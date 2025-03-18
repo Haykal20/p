@@ -10,7 +10,7 @@ const FileStore = require('session-file-store')(session);
 const app = express();
 
 // Update these values to use environment variables
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 const SALT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12;
 
 // Configure multer for file upload
@@ -36,6 +36,7 @@ app.use('/uploads', express.static('uploads'));
 // Melayani file statis
 app.use(express.static(path.join(__dirname)));
 
+// Update session configuration for Railway compatibility
 app.use(session({
     store: new FileStore({
         path: './sessions',
@@ -48,16 +49,22 @@ app.use(session({
     cookie: {
         secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
         httpOnly: true, // Prevents client side JS from reading the cookie 
-        maxAge: 1000 * 60 * 60 * 24 // Session max age in milliseconds (1 day)
+        maxAge: 1000 * 60 * 60 * 24, // Session max age in milliseconds (1 day)
+        sameSite: 'lax',
+        // Allow cookies to work on Railway's domain
+        domain: process.env.RAILWAY_STATIC_URL ? new URL(process.env.RAILWAY_STATIC_URL).hostname : undefined
     }
 }));
 
-// Add this before app.listen
+// Add CORS headers for Railway
 app.use((req, res, next) => {
-  if (process.env.RAILWAY_STATIC_URL) {
-    res.setHeader('Access-Control-Allow-Origin', process.env.RAILWAY_STATIC_URL);
-  }
-  next();
+    if (process.env.RAILWAY_STATIC_URL) {
+        res.setHeader('Access-Control-Allow-Origin', process.env.RAILWAY_STATIC_URL);
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    next();
 });
 
 // Rute untuk menangani permintaan GET ke root URL
@@ -112,7 +119,7 @@ app.post('/signup', async (req, res) => {
     res.status(201).json({ message: 'User registered successfully' });
 });
 
-// Sign-in route
+// Update signin route with better error handling and logging
 app.post('/signin', async (req, res) => {
     const { identifier, password } = req.body;
     
@@ -131,17 +138,35 @@ app.post('/signin', async (req, res) => {
 
     if (!user) {
         console.log('User not found');
-        return res.status(400).json({ message: 'Invalid credentials' });
+        return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     try {
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
             console.log('Invalid password');
-            return res.status(400).json({ message: 'Invalid credentials' });
+            return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        req.session.user = user;
+        // Store minimal user data in session
+        req.session.user = {
+            username: user.username,
+            name: user.name,
+            email: user.email,
+            nim: user.nim,
+            photo: user.photo
+        };
+        
+        await new Promise((resolve, reject) => {
+            req.session.save((err) => {
+                if (err) {
+                    console.error('Session save error:', err);
+                    reject(err);
+                }
+                resolve();
+            });
+        });
+
         console.log('Sign in successful for:', user.username);
         res.status(200).json({ message: 'Sign-in successful' });
     } catch (error) {
@@ -150,8 +175,11 @@ app.post('/signin', async (req, res) => {
     }
 });
 
+// Update profile route with better security
 app.get('/profile', (req, res) => {
+    console.log('Session user:', req.session.user);
     if (!req.session.user) {
+        console.log('No session user found, redirecting to signin');
         return res.redirect('/');
     }
     res.sendFile(path.join(__dirname, 'profile.html'));
@@ -225,5 +253,5 @@ app.post('/reset-password', async (req, res) => {
 
 // Start the server
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });

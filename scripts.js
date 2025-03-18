@@ -21,16 +21,20 @@ document.getElementById('signInForm').addEventListener('submit', async function(
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include', // Important for sending cookies
             body: JSON.stringify({ identifier, password })
         });
 
+        const result = await response.json();
+        
         if (response.ok) {
+            console.log('Sign in successful, redirecting...');
             window.location.href = '/profile';
         } else {
-            const result = await response.json();
             alert(result.message);
         }
     } catch (error) {
+        console.error('Sign in error:', error);
         alert('An error occurred during sign in');
     }
 });
