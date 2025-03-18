@@ -19,16 +19,26 @@ const SESSION_SECRET = process.env.SESSION_SECRET || require('crypto').randomByt
 // Configure multer for file upload
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
+        // Ensure upload directory exists
         const uploadDir = process.env.NODE_ENV === 'production' 
-            ? process.env.UPLOAD_DIR 
-            : './uploads';
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
+            ? path.join(process.env.PERSISTENT_STORAGE, 'uploads')
+            : path.join(__dirname, 'uploads');
+            
+        console.log('Upload directory:', uploadDir); // Debug log
+        
+        try {
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+            }
+            cb(null, uploadDir);
+        } catch (error) {
+            console.error('Error creating upload directory:', error);
+            cb(error);
         }
-        cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
-        cb(null, Date.now() + '-' + file.originalname);
+        const uniqueName = Date.now() + '-' + file.originalname.replace(/\s+/g, '-');
+        cb(null, uniqueName);
     }
 });
 
@@ -246,6 +256,8 @@ app.get('/logout', (req, res) => {
 
 // Add this after other routes
 app.post('/update-photo', upload.single('photo'), (req, res) => {
+    console.log('Update photo request received'); // Debug log
+    
     if (!req.session.user) {
         return res.status(401).json({ message: 'Not authenticated' });
     }
@@ -254,13 +266,25 @@ app.post('/update-photo', upload.single('photo'), (req, res) => {
         return res.status(400).json({ message: 'No file uploaded' });
     }
 
+    console.log('File uploaded:', req.file); // Debug log
+
     const users = readUsers();
     const userIndex = users.findIndex(user => user.username === req.session.user.username);
 
-    if (userIndex !== -1) {
-        // Delete old photo if exists
-        if (users[userIndex].photo) {
-            const oldPhotoPath = path.join(__dirname, 'uploads', users[userIndex].photo);
+    if (userIndex === -1) {
+        return res.status(404).json({ message: 'User not found' });
+    }
+
+    try {
+        // Delete old photo if it exists and isn't the default
+        if (users[userIndex].photo && users[userIndex].photo !== 'default-avatar.png') {
+            const oldPhotoPath = path.join(
+                process.env.NODE_ENV === 'production' 
+                    ? path.join(process.env.PERSISTENT_STORAGE, 'uploads')
+                    : path.join(__dirname, 'uploads'),
+                users[userIndex].photo
+            );
+            
             if (fs.existsSync(oldPhotoPath)) {
                 fs.unlinkSync(oldPhotoPath);
             }
@@ -270,9 +294,14 @@ app.post('/update-photo', upload.single('photo'), (req, res) => {
         users[userIndex].photo = req.file.filename;
         req.session.user.photo = req.file.filename;
         writeUsers(users);
-        res.json({ photo: req.file.filename });
-    } else {
-        res.status(404).json({ message: 'User not found' });
+        
+        res.json({ 
+            photo: req.file.filename,
+            message: 'Photo updated successfully'
+        });
+    } catch (error) {
+        console.error('Error updating photo:', error);
+        res.status(500).json({ message: 'Error updating photo' });
     }
 });
 
