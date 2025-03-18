@@ -46,14 +46,13 @@ app.use(session({
         ttl: 86400,
         reapInterval: 3600,
         logFn: function(){}, // Disable verbose session logs
-        retries: 0, // Disable retries
-        secret: SESSION_SECRET // Add secret to file store
+        retries: 0 // Disable retries
     }),
     secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
+    resave: true, // Changed to true
+    saveUninitialized: true, // Changed to true
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Set to false for development
         httpOnly: true,
         maxAge: 1000 * 60 * 60 * 24,
         sameSite: 'lax'
@@ -178,7 +177,10 @@ app.post('/signin', async (req, res) => {
             }
             console.log('Session saved successfully:', req.session.id);
             console.log('User data in session:', req.session.user);
-            res.status(200).json({ message: 'Sign-in successful' });
+            res.status(200).json({ 
+                message: 'Sign-in successful',
+                redirectUrl: '/profile'  // Tambahkan URL redirect
+            });
         });
 
     } catch (error) {
@@ -268,5 +270,5 @@ app.post('/reset-password', async (req, res) => {
 
 // Start the server
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running at http://localhost:${PORT}`);
 });

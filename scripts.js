@@ -21,15 +21,15 @@ document.getElementById('signInForm').addEventListener('submit', async function(
             headers: {
                 'Content-Type': 'application/json'
             },
-            credentials: 'same-origin', // Changed from 'include' to 'same-origin'
+            credentials: 'include', // Changed back to include
             body: JSON.stringify({ identifier, password })
         });
 
         const result = await response.json();
         
         if (response.ok) {
-            console.log('Sign in successful, redirecting...');
-            window.location.href = '/profile';
+            console.log('Sign in successful, redirecting to:', result.redirectUrl);
+            window.location.replace(result.redirectUrl); // Changed to replace
         } else {
             console.error('Sign in failed:', result.message);
             alert(result.message);
