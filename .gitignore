@@ -46,3 +46,6 @@ users.json
 .vscode/
 *.swp
 *.swo
+
+# Session files
+sessions/

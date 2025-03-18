@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const multer = require('multer');
 const session = require('express-session');
+const FileStore = require('session-file-store')(session);
 const app = express();
 
 // Update these values to use environment variables
@@ -36,9 +37,14 @@ app.use('/uploads', express.static('uploads'));
 app.use(express.static(path.join(__dirname)));
 
 app.use(session({
-    secret: process.env.SESSION_SECRET,
+    store: new FileStore({
+        path: './sessions',
+        ttl: 86400, // 1 day in seconds
+        reapInterval: 3600 // Clean up expired sessions every hour
+    }),
+    secret: process.env.SESSION_SECRET || 'fallback-secret-key',
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false, // Changed to false for better security
     cookie: {
         secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
         httpOnly: true, // Prevents client side JS from reading the cookie 
