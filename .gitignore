@@ -19,6 +19,9 @@ pids
 # Directory for uploaded files
 uploads/
 
+# User data
+users.json
+
 # Optional npm cache directory
 .npm
 
