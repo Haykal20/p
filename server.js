@@ -13,6 +13,9 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 const SALT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12;
 
+// Generate a random session secret if none is provided
+const SESSION_SECRET = process.env.SESSION_SECRET || require('crypto').randomBytes(32).toString('hex');
+
 // Configure multer for file upload
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -36,12 +39,6 @@ app.use('/uploads', express.static('uploads'));
 // Melayani file statis
 app.use(express.static(path.join(__dirname)));
 
-// Ensure SESSION_SECRET exists
-if (!process.env.SESSION_SECRET) {
-    console.error('SESSION_SECRET is not set in environment variables');
-    process.exit(1);
-}
-
 // Update session configuration
 app.use(session({
     store: new FileStore({
@@ -50,9 +47,9 @@ app.use(session({
         reapInterval: 3600,
         logFn: function(){}, // Disable verbose session logs
         retries: 0, // Disable retries
-        secret: process.env.SESSION_SECRET // Add secret to file store
+        secret: SESSION_SECRET // Add secret to file store
     }),
-    secret: process.env.SESSION_SECRET,
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
