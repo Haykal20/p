@@ -38,7 +38,12 @@ app.use(express.static(path.join(__dirname)));
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: true
+    saveUninitialized: true,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+        httpOnly: true, // Prevents client side JS from reading the cookie 
+        maxAge: 1000 * 60 * 60 * 24 // Session max age in milliseconds (1 day)
+    }
 }));
 
 // Add this before app.listen
