@@ -52,9 +52,9 @@ app.use(session({
     }),
     secret: SESSION_SECRET,
     resave: true, // Changed to true
-    saveUninitialized: true, // Changed to true
+    saveUninitialized: false, // Changed to false
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Changed to false for development
         httpOnly: true,
         maxAge: 1000 * 60 * 60 * 24,
         sameSite: 'lax'
@@ -190,6 +190,7 @@ app.post('/signin', async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
+        // Set session data
         req.session.user = {
             username: user.username,
             name: user.name,
@@ -198,11 +199,14 @@ app.post('/signin', async (req, res) => {
             photo: user.photo
         };
 
+        console.log('Setting session:', req.session); // Add debug log
+
         req.session.save((err) => {
             if (err) {
                 console.error('Session save error:', err);
                 return res.status(500).json({ message: 'Error creating session' });
             }
+            console.log('Session saved:', req.session.id); // Add debug log
             res.status(200).json({ 
                 message: 'Sign-in successful',
                 redirectUrl: '/profile'
@@ -216,8 +220,10 @@ app.post('/signin', async (req, res) => {
 
 // Update profile route with better security
 app.get('/profile', (req, res) => {
+    console.log('Accessing profile. Session:', req.session);
     console.log('Session ID:', req.session.id);
-    console.log('Session Data:', req.session);
+    console.log('User data:', req.session.user);
+    
     if (!req.session.user) {
         console.log('No session user found, redirecting to signin');
         return res.redirect('/');
