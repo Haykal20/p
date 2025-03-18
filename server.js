@@ -9,7 +9,7 @@ const session = require('express-session');
 const app = express();
 
 // Update these values to use environment variables
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 const SALT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12;
 
 // Configure multer for file upload
